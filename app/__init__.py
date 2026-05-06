@@ -1,0 +1,1 @@
+"""AI Poster application package."""
