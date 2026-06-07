@@ -1,0 +1,2 @@
+[console_scripts]
+ai-poster = app.cli.main:main

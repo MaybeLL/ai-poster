@@ -4,37 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-AI Poster is an automated content production system for AI industry news. It ingests RSS sources, clusters events, builds research packets, generates draft articles, and runs quality checks. Currently a rule-based MVP skeleton — no real LLM integration, no database, no API server yet.
+AI Poster is an automated content production system for AI industry news. It ingests RSS sources, clusters events, builds research packets, generates draft articles, runs quality checks, and publishes to content platforms.
 
 ## Commands
 
+### Installable CLI (`ai-poster`)
+
 ```bash
-# Run demo workflow
-python3 -m app --mode demo-workflow --topic "OpenAI releases a new coding model"
+pip install -e .
+
+# Quick demo with mock QA scores
+ai-poster demo --topic "OpenAI releases a new coding model"
 
 # Ingest RSS sources
-python3 -m app --mode ingest --lookback-hours 24
+ai-poster ingest --lookback-hours 24
+ai-poster --json ingest --lookback-hours 24  # machine-readable output
 
 # Rank event clusters
-python3 -m app --mode rank-events --lookback-hours 24 --limit 3
+ai-poster events --lookback-hours 24 --limit 3
 
-# Research packets
-python3 -m app --mode research --lookback-hours 24 --limit 3
+# Build research packets
+ai-poster research --lookback-hours 24 --limit 3
 
-# Full pipeline
-python3 -m app --mode pipeline --lookback-hours 24 --limit 1
+# Full pipeline (ingest → cluster → research → draft → QA → publish)
+ai-poster pipeline --lookback-hours 24 --limit 1
 
-# Probe/resolve intelligence backend
-python3 -m app --mode agent-probe
-AI_POSTER_INTELLIGENCE_BACKEND=codex python3 -m app --mode agent-probe
-AI_POSTER_INTELLIGENCE_BACKEND=claude-code python3 -m app --mode agent-probe
+# Probe/smoke-test the intelligence backend
+ai-poster agent probe
+ai-poster agent smoke
 
-# Smoke-test external agent process
-AI_POSTER_INTELLIGENCE_BACKEND=codex python3 -m app --mode agent-smoke
-AI_POSTER_INTELLIGENCE_BACKEND=claude-code python3 -m app --mode agent-smoke
+# Start the web API
+ai-poster serve --port 8000
+
+# Database migrations
+ai-poster migrate upgrade head
+ai-poster migrate current
+ai-poster migrate history
 
 # Run unit tests
 python3 -m unittest discover -s tests/unit -p 'test_*.py'
+```
+
+Global options: `--json` (machine-readable output), `--env-file PATH` (load .env file).
+
+### Legacy CLI (`python -m app`)
+
+```bash
+python3 -m app --mode demo-workflow --topic "..."
+python3 -m app --mode ingest --lookback-hours 24
+python3 -m app --mode pipeline --lookback-hours 24 --limit 1
+python3 -m app --mode agent-probe
+python3 -m app --mode agent-smoke
 ```
 
 ## Key environment variables

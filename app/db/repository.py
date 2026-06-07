@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.content_job import ContentJob
+from app.posting.models import Post
 from app.core.quality_gate import QualityDecision
 from app.db.adapters import (
     cluster_to_model,
@@ -19,8 +20,10 @@ from app.db.adapters import (
     model_to_draft,
     model_to_job,
     model_to_packet,
+    model_to_post,
     model_to_qa_review,
     packet_to_model,
+    post_to_model,
     qa_review_to_model,
 )
 from app.db.models import (
@@ -30,6 +33,7 @@ from app.db.models import (
     EventClusterModel,
     IngestionRunModel,
     JobEventModel,
+    PostModel,
     QaReviewModel,
     RawDocumentModel,
     ResearchPacketModel,
@@ -187,6 +191,33 @@ def list_ingestion_runs(session: Session, limit: int = 50) -> list[IngestionRunM
         .limit(limit)
         .all()
     )
+
+
+def save_posts(session: Session, posts: list[Post], job_id: str) -> list[PostModel]:
+    models: list[PostModel] = []
+    for post in posts:
+        model = post_to_model(post, job_id)
+        session.add(model)
+        models.append(model)
+    session.flush()
+    return models
+
+
+def get_posts_by_job_id(session: Session, job_id: str) -> list[Post]:
+    models = (
+        session.query(PostModel)
+        .filter_by(job_id=job_id)
+        .order_by(PostModel.created_at)
+        .all()
+    )
+    return [model_to_post(m) for m in models]
+
+
+def get_post_by_id(session: Session, post_id: str) -> Optional[Post]:
+    model = session.query(PostModel).filter_by(post_id=post_id).first()
+    if model is None:
+        return None
+    return model_to_post(model)
 
 
 def complete_ingestion_run(session: Session, run_id: str) -> None:

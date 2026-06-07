@@ -15,7 +15,14 @@ dependencies = [
   "httpx>=0.28,<1.0",
   "redis>=5.0,<6.0",
   "celery>=5.4,<6.0",
+  "alembic>=1.16,<2.0",
+  "uvicorn>=0.39,<1.0",
+  "click>=8.1,<9.0",
+  "python-dotenv>=1.0,<2.0",
 ]
+
+[project.scripts]
+ai-poster = "app.cli.main:main"
 
 [tool.setuptools.packages.find]
 include = ["app*"]

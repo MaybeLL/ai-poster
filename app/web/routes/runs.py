@@ -10,6 +10,7 @@ from app.db.repository import (
     save_event_clusters,
     save_ingestion_result,
 )
+from app.posting.publishers import TelegramPublisher
 from app.services.events.engine import EventEngine
 from app.services.factory import build_content_services
 from app.services.ingestion.service import IngestionService
@@ -62,7 +63,17 @@ def trigger_pipeline(
     db.flush()
 
     content_services = build_content_services(settings=settings)
-    runner = PersistentWorkflowRunner(session=db, content_services=content_services)
+    tg = (
+        TelegramPublisher(bot_token=settings.telegram_bot_token, chat_id=settings.telegram_chat_id)
+        if settings.telegram_bot_token and settings.telegram_chat_id
+        else None
+    )
+    runner = PersistentWorkflowRunner(
+        session=db,
+        content_services=content_services,
+        output_dir=settings.data_dir,
+        publishers=[tg] if tg else [],
+    )
 
     job_ids: list[str] = []
     for cluster in clusters:

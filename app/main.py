@@ -10,6 +10,8 @@ from app.agents.smoke import run_agent_smoke
 from app.core.quality_gate import QualityGateInput
 from app.core.quality_gate import QualityGate
 from app.core.settings import AppSettings
+from app.posting.publishers import TelegramPublisher
+from app.posting.writer import write_post
 from app.services.events.engine import EventEngine
 from app.services.factory import build_content_services
 from app.services.ingestion.service import IngestionService
@@ -134,6 +136,21 @@ def build_pipeline_summary(
     ]
     decisions = [gate.evaluate(review.to_quality_gate_input()) for review in review_results]
     final_status = "accepted" if decisions and all(decision.accepted for decision in decisions) else "rejected"
+
+    tg = (
+        TelegramPublisher(bot_token=settings.telegram_bot_token, chat_id=settings.telegram_chat_id)
+        if settings.telegram_bot_token and settings.telegram_chat_id
+        else None
+    )
+
+    for packet, cluster in zip(packets, clusters):
+        posts = content_services.posting_service.generate_posts(packet, job_id=cluster.cluster_id)
+        for post in posts:
+            path = write_post(post, settings.data_dir)
+            _ = path
+            if tg:
+                tg.publish(post)
+
     top_headlines = ", ".join(packet.headline for packet in packets) if packets else "none"
     return "\n".join(
         (

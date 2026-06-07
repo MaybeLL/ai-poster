@@ -76,6 +76,29 @@ class ClaudePrintProfileTest(unittest.TestCase):
 
         self.assertEqual(parsed, '{"score": 88, "notes": []}')
 
+    def test_parse_result_extracts_json_from_structured_output(self) -> None:
+        profile = ClaudePrintProfile(base_command=["claude"])
+        result = ProviderExecutionResult(
+            stdout=json.dumps(
+                {
+                    "type": "result",
+                    "structured_output": {
+                        "status": "ok",
+                        "backend": "reachable",
+                        "echo": "Backend is reachable.",
+                    },
+                }
+            ),
+            stderr="",
+            returncode=0,
+        )
+
+        parsed = profile.parse_result(result=result, invocation=None)
+
+        self.assertEqual(
+            parsed, '{"status": "ok", "backend": "reachable", "echo": "Backend is reachable."}'
+        )
+
     def test_parse_result_reports_stderr_when_stdout_is_empty(self) -> None:
         profile = ClaudePrintProfile(base_command=["claude"])
         result = ProviderExecutionResult(stdout="", stderr="authentication required", returncode=0)

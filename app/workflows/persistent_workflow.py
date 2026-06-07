@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
 from app.core.content_job import ContentJob
@@ -12,9 +14,12 @@ from app.db.repository import (
     save_event_clusters,
     save_ingestion_result,
     save_job_events,
+    save_posts,
     save_qa_review,
     save_research_packet,
 )
+from app.posting.publishers import Publisher
+from app.posting.writer import write_post
 from app.services.events.engine import EventCluster
 from app.services.factory import ContentServices
 from app.services.ingestion.service import IngestionResult
@@ -42,10 +47,14 @@ class PersistentWorkflowRunner:
         session: Session,
         content_services: ContentServices,
         quality_gate: QualityGate | None = None,
+        output_dir: Path | None = None,
+        publishers: list[Publisher] | None = None,
     ) -> None:
         self.session = session
         self.content_services = content_services
         self.quality_gate = quality_gate or QualityGate()
+        self.output_dir = output_dir
+        self.publishers = publishers or []
 
     def save_ingestion(self, result: IngestionResult, lookback_hours: int) -> str:
         run_id = str(uuid4())
@@ -77,6 +86,15 @@ class PersistentWorkflowRunner:
         review = self.content_services.qa_service.review_package(packet, draft_package)
         decision = self.quality_gate.evaluate(review.to_quality_gate_input())
         save_qa_review(self.session, review, decision, job.job_id)
+
+        posts = self.content_services.posting_service.generate_posts(packet, job.job_id)
+        save_posts(self.session, posts, job.job_id)
+        if self.output_dir is not None:
+            for post in posts:
+                write_post(post, self.output_dir)
+        for post in posts:
+            for publisher in self.publishers:
+                publisher.publish(post)
 
         terminal_status = "accepted" if decision.accepted else "rejected"
         job.transition_to(terminal_status, reason="Quality gate decision recorded")

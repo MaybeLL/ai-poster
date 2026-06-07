@@ -86,6 +86,10 @@ class ClaudePrintProfile:
             else:
                 snippet = "<empty stdout>"
             raise ValueError(f"claude output was not valid JSON: {snippet}") from exc
+
+        if isinstance(parsed, dict) and "structured_output" in parsed:
+            return json.dumps(parsed["structured_output"], ensure_ascii=True)
+
         if isinstance(parsed, dict) and "result" in parsed and isinstance(parsed["result"], str):
             inner = json.loads(parsed["result"])
             return json.dumps(inner, ensure_ascii=True)

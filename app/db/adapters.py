@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from app.core.content_job import ContentJob, JobEvent
+from app.posting.models import Post
 from app.db.models import (
     ContentJobModel,
     DraftPackageModel,
     EventClusterModel,
     IngestionRunModel,
     JobEventModel,
+    PostModel,
     QaReviewModel,
     RawDocumentModel,
     ResearchPacketModel,
@@ -195,6 +198,35 @@ def model_to_qa_review(model: QaReviewModel) -> tuple[QaReviewResult, bool]:
         failed_checks=json.loads(model.failed_checks_json),
     )
     return review, model.accepted
+
+
+def post_to_model(post: Post, job_id: str) -> PostModel:
+    return PostModel(
+        post_id=post.post_id,
+        job_id=job_id,
+        platform=post.platform,
+        title=post.title,
+        body=post.body,
+        tags_json=json.dumps(post.tags),
+        status=post.status,
+        published_at=post.published_at,
+        url=post.url,
+    )
+
+
+def model_to_post(model: PostModel) -> Post:
+    return Post(
+        post_id=model.post_id,
+        job_id=model.job_id,
+        platform=model.platform,
+        title=model.title,
+        body=model.body,
+        tags=json.loads(model.tags_json),
+        status=model.status,
+        published_at=model.published_at,
+        url=model.url,
+        created_at=model.created_at or datetime.now(timezone.utc),
+    )
 
 
 def ingestion_result_to_run_model(result: IngestionResult, run_id: str, lookback_hours: int) -> IngestionRunModel:

@@ -159,3 +159,19 @@ class IngestionRunModel(Base):
     source_errors_json: Mapped[str] = mapped_column(Text, default="[]")
     started_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PostModel(Base):
+    __tablename__ = "posts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    post_id: Mapped[str] = mapped_column(String(36), unique=True, index=True)
+    job_id: Mapped[str] = mapped_column(String(36), ForeignKey("content_jobs.job_id"), index=True)
+    platform: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    tags_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(32), default="draft")
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

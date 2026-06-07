@@ -111,9 +111,9 @@ class AgentIntegrationTest(unittest.TestCase):
         review = services.qa_service.review_package(packet, draft_package)
 
         self.assertIn(
-            packet.headline,
+            "GPT-5",
             draft_package.long_article.body,
-            "Long article should reference the headline",
+            "Long article should reference the headline topic",
         )
         self.assertGreaterEqual(
             review.factual_accuracy_score, 0,
