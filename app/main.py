@@ -143,8 +143,8 @@ def build_pipeline_summary(
         else None
     )
 
-    for packet, cluster in zip(packets, clusters):
-        posts = content_services.posting_service.generate_posts(packet, job_id=cluster.cluster_id)
+    for packet, draft_package, cluster in zip(packets, draft_packages, clusters):
+        posts = content_services.posting_service.generate_posts(packet, draft_package, job_id=cluster.cluster_id)
         for post in posts:
             path = write_post(post, settings.data_dir)
             _ = path

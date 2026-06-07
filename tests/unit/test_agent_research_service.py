@@ -84,7 +84,7 @@ class AgentResearchServiceTest(unittest.TestCase):
 
         packet = AgentResearchService(provider=provider, fallback=ResearchService()).build_packet(cluster)
 
-        self.assertIn("Covered by 1 source", packet.event_summary)
+        self.assertIn("信源报道", packet.event_summary)
 
 
 if __name__ == "__main__":

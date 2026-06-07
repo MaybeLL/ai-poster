@@ -256,7 +256,11 @@ class AgentResearchService:
         )
         try:
             response = self.provider.generate(request)
-            payload = ResearchAgentOutput.model_validate(json.loads(response.output_text))
+            raw = json.loads(response.output_text)
+            # Handle case where parse_result returned the full Claude envelope
+            if isinstance(raw, dict) and "structured_output" in raw:
+                raw = raw["structured_output"]
+            payload = ResearchAgentOutput.model_validate(raw)
             return ResearchPacket(
                 cluster_id=fallback_packet.cluster_id,
                 headline=fallback_packet.headline,

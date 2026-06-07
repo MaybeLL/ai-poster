@@ -54,12 +54,15 @@ class AgentCommandTest(unittest.TestCase):
         self.assertIn("smoke", result.output)
 
     def test_agent_probe(self) -> None:
-        result = self.runner.invoke(main, ["agent", "probe"])
+        # Override .env so test sees default "rule" backend
+        result = self.runner.invoke(main, ["agent", "probe"],
+            env={"AI_POSTER_INTELLIGENCE_BACKEND": "rule"})
         self.assertEqual(result.exit_code, 0)
         self.assertIn("backend: rule", result.output)
 
     def test_agent_probe_json(self) -> None:
-        result = self.runner.invoke(main, ["--json", "agent", "probe"])
+        result = self.runner.invoke(main, ["--json", "agent", "probe"],
+            env={"AI_POSTER_INTELLIGENCE_BACKEND": "rule"})
         self.assertEqual(result.exit_code, 0)
         data = json.loads(result.output)
         self.assertIn("backend", data)

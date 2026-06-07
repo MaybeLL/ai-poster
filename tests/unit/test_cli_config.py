@@ -53,7 +53,8 @@ class BuildSettingsFromCliTest(unittest.TestCase):
             os.environ.pop(k, None)
 
         try:
-            settings = build_settings_from_cli()
+            # Use a non-existent env file so project .env is not loaded
+            settings = build_settings_from_cli(env_file="/dev/null/nonexistent/.env")
             self.assertEqual(settings.environment, "development")
             self.assertEqual(settings.data_dir, Path("data"))
             self.assertEqual(settings.intelligence_backend, "rule")

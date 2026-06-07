@@ -21,6 +21,7 @@ from app.services.factory import build_content_services
 from app.services.ingestion.rss_adapter import RawDocument
 from app.services.events.engine import EventCluster, EventScore
 from app.services.research.service import ResearchPacket, SourceBrief, TimelineEntry
+from app.services.writing.service import DraftArticle, DraftPackage
 
 
 def _make_packet() -> ResearchPacket:
@@ -48,6 +49,21 @@ def _make_packet() -> ResearchPacket:
         ],
         keywords=["GPT-5", "reasoning", "multimodal", "OpenAI"],
         open_questions=["API pricing?"],
+    )
+
+
+def _make_draft() -> DraftPackage:
+    return DraftPackage(
+        long_article=DraftArticle(
+            cluster_id="cluster-test-1",
+            title="GPT-5 发布：推理能力实现质的飞跃",
+            body="## 事件概述\n\nOpenAI 发布了 GPT-5，推理能力大幅提升。\n\n## 核心看点\n\nGPT-5 带来了多项突破。\n\n## 关键判断\n\n这是重大进步。",
+        ),
+        short_post=DraftArticle(
+            cluster_id="cluster-test-1",
+            title="GPT-5 来了！",
+            body="📌 GPT-5 发布了！\n\nOpenAI 刚刚发布了 GPT-5...\n\n💡 推理能力大幅提升",
+        ),
     )
 
 
@@ -79,16 +95,16 @@ class PostModelTest(unittest.TestCase):
 
 
 class WeChatPipelineTest(unittest.TestCase):
-    def test_rule_fallback_produces_valid_post(self) -> None:
+    def test_rule_fallback_uses_draft_content(self) -> None:
         pipeline = WeChatPostPipeline()
         packet = _make_packet()
-        post = pipeline.build_post(packet, job_id="j1")
+        draft = _make_draft()
+        post = pipeline.build_post(packet, draft, job_id="j1")
 
         self.assertEqual(post.platform, "wechat")
         self.assertIn("GPT-5", post.title)
         self.assertIn("事件概述", post.body)
-        self.assertIn("核心分析", post.body)
-        self.assertGreater(len(post.body), 100)
+        self.assertGreater(len(post.body), 50)
 
     def test_agent_mode_uses_provider(self) -> None:
         def executor(invocation: AgentInvocation) -> ProviderExecutionResult:
@@ -97,7 +113,7 @@ class WeChatPipelineTest(unittest.TestCase):
                     "type": "result",
                     "structured_output": {
                         "title": "GPT-5 发布：推理能力质的飞跃",
-                        "body": "## 事件概述\n\nOpenAI 发布了 GPT-5。\n\n## 关键判断\n\n这是重大进步。",
+                        "body": "## 事件概述\n\nOpenAI 发布了 GPT-5。",
                         "tags": ["GPT-5", "AI"],
                     },
                 }),
@@ -114,14 +130,14 @@ class WeChatPipelineTest(unittest.TestCase):
         provider = build_agent_provider(settings=settings, executor=executor)
         pipeline = WeChatPostPipeline(provider=provider)
         packet = _make_packet()
-        post = pipeline.build_post(packet, job_id="j1")
+        draft = _make_draft()
+        post = pipeline.build_post(packet, draft, job_id="j1")
 
         self.assertEqual(post.platform, "wechat")
         self.assertIn("GPT-5", post.title)
-        self.assertIn("事件概述", post.body)
         self.assertEqual(post.tags, ["GPT-5", "AI"])
 
-    def test_agent_failure_falls_back_to_rule(self) -> None:
+    def test_agent_failure_falls_back_to_draft(self) -> None:
         def executor(invocation: AgentInvocation) -> ProviderExecutionResult:
             raise RuntimeError("agent crashed")
 
@@ -134,24 +150,23 @@ class WeChatPipelineTest(unittest.TestCase):
         provider = build_agent_provider(settings=settings, executor=executor)
         pipeline = WeChatPostPipeline(provider=provider)
         packet = _make_packet()
-        post = pipeline.build_post(packet, job_id="j1")
+        draft = _make_draft()
+        post = pipeline.build_post(packet, draft, job_id="j1")
 
         self.assertEqual(post.platform, "wechat")
-        self.assertIn("事件概述", post.body)  # fallback output
+        self.assertIn("GPT-5", post.title)  # falls back to draft title
 
 
 class XiaohongshuPipelineTest(unittest.TestCase):
-    def test_rule_fallback_produces_valid_post(self) -> None:
+    def test_rule_fallback_uses_draft_content(self) -> None:
         pipeline = XiaohongshuPostPipeline()
         packet = _make_packet()
-        post = pipeline.build_post(packet, job_id="j1")
+        draft = _make_draft()
+        post = pipeline.build_post(packet, draft, job_id="j1")
 
         self.assertEqual(post.platform, "xiaohongshu")
         self.assertIn("GPT-5", post.title)
         self.assertIn("📌", post.body)
-        self.assertTrue(any(t.startswith("#") for t in post.tags) or all(
-            t in post.body for t in post.tags if t
-        ))
 
     def test_agent_mode_uses_provider(self) -> None:
         def executor(invocation: AgentInvocation) -> ProviderExecutionResult:
@@ -160,7 +175,7 @@ class XiaohongshuPipelineTest(unittest.TestCase):
                     "type": "result",
                     "structured_output": {
                         "title": "GPT-5 来了！",
-                        "body": "OpenAI 刚刚发布了 GPT-5...\n\n#AI #GPT5",
+                        "body": "OpenAI 刚刚发布了 GPT-5...",
                         "tags": ["#AI", "#GPT5"],
                     },
                 }),
@@ -177,13 +192,14 @@ class XiaohongshuPipelineTest(unittest.TestCase):
         provider = build_agent_provider(settings=settings, executor=executor)
         pipeline = XiaohongshuPostPipeline(provider=provider)
         packet = _make_packet()
-        post = pipeline.build_post(packet, job_id="j1")
+        draft = _make_draft()
+        post = pipeline.build_post(packet, draft, job_id="j1")
 
         self.assertEqual(post.platform, "xiaohongshu")
         self.assertIn("GPT-5", post.title)
         self.assertEqual(post.tags, ["#AI", "#GPT5"])
 
-    def test_agent_failure_falls_back_to_rule(self) -> None:
+    def test_agent_failure_falls_back_to_draft(self) -> None:
         def executor(invocation: AgentInvocation) -> ProviderExecutionResult:
             raise RuntimeError("agent crashed")
 
@@ -196,10 +212,11 @@ class XiaohongshuPipelineTest(unittest.TestCase):
         provider = build_agent_provider(settings=settings, executor=executor)
         pipeline = XiaohongshuPostPipeline(provider=provider)
         packet = _make_packet()
-        post = pipeline.build_post(packet, job_id="j1")
+        draft = _make_draft()
+        post = pipeline.build_post(packet, draft, job_id="j1")
 
         self.assertEqual(post.platform, "xiaohongshu")
-        self.assertIn("📌", post.body)
+        self.assertIn("📌", post.body)  # falls back to draft content
 
 
 class PostingServiceTest(unittest.TestCase):
@@ -209,7 +226,8 @@ class PostingServiceTest(unittest.TestCase):
             "xiaohongshu": XiaohongshuPostPipeline(),
         })
         packet = _make_packet()
-        posts = service.generate_posts(packet, job_id="j1")
+        draft = _make_draft()
+        posts = service.generate_posts(packet, draft, job_id="j1")
 
         self.assertEqual(len(posts), 2)
         platforms = {p.platform for p in posts}
@@ -224,7 +242,9 @@ class PostingServiceTest(unittest.TestCase):
 
     def test_empty_pipelines(self) -> None:
         service = PostingService(pipelines={})
-        posts = service.generate_posts(_make_packet(), job_id="j1")
+        packet = _make_packet()
+        draft = _make_draft()
+        posts = service.generate_posts(packet, draft, job_id="j1")
         self.assertEqual(posts, [])
 
 

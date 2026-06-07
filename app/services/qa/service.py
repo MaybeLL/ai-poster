@@ -125,7 +125,10 @@ class AgentQaService:
         )
         try:
             response = self.provider.generate(request)
-            payload = QaReviewAgentOutput.model_validate(json.loads(response.output_text))
+            raw = json.loads(response.output_text)
+            if isinstance(raw, dict) and "structured_output" in raw:
+                raw = raw["structured_output"]
+            payload = QaReviewAgentOutput.model_validate(raw)
             return QaReviewResult(
                 total_score=payload.total_score,
                 factual_accuracy_score=payload.factual_accuracy_score,

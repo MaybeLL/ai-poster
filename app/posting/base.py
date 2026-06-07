@@ -4,6 +4,7 @@ from typing import Protocol
 
 from app.posting.models import Post
 from app.services.research.service import ResearchPacket
+from app.services.writing.service import DraftPackage
 
 
 class PlatformPipeline(Protocol):
@@ -11,5 +12,5 @@ class PlatformPipeline(Protocol):
     def platform(self) -> str:
         ...
 
-    def build_post(self, packet: ResearchPacket, job_id: str) -> Post:
+    def build_post(self, packet: ResearchPacket, draft: DraftPackage, job_id: str) -> Post:
         ...

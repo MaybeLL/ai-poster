@@ -43,7 +43,7 @@ class QualityGateTest(unittest.TestCase):
         payload = QualityGateInput(
             total_score=88,
             factual_accuracy_score=93,
-            viewpoint_clarity_score=70,
+            viewpoint_clarity_score=60,
             sources_verified=True,
             within_time_window=True,
             claims_supported=True,

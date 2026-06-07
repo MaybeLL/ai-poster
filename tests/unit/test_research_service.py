@@ -71,8 +71,8 @@ class ResearchServiceTest(unittest.TestCase):
 
         packet = ResearchService().build_packet(cluster)
 
-        self.assertIn("single_source_only", packet.open_questions)
-        self.assertIn("missing_publication_time", packet.open_questions)
+        self.assertTrue(any("单一信源" in q for q in packet.open_questions))
+        self.assertTrue(any("发布时间未知" in q for q in packet.open_questions))
 
 
 if __name__ == "__main__":

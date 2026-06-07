@@ -100,7 +100,10 @@ class AgentWritingService:
         )
         try:
             response = self.provider.generate(request)
-            payload = WritingAgentOutput.model_validate(json.loads(response.output_text))
+            raw = json.loads(response.output_text)
+            if isinstance(raw, dict) and "structured_output" in raw:
+                raw = raw["structured_output"]
+            payload = WritingAgentOutput.model_validate(raw)
             return DraftPackage(
                 long_article=DraftArticle(
                     cluster_id=packet.cluster_id,

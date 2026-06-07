@@ -91,7 +91,7 @@ class PersistentWorkflowRunner:
         decision = self.quality_gate.evaluate(review.to_quality_gate_input())
         save_qa_review(self.session, review, decision, job.job_id)
 
-        posts = self.content_services.posting_service.generate_posts(packet, job.job_id)
+        posts = self.content_services.posting_service.generate_posts(packet, draft_package, job.job_id)
         save_posts(self.session, posts, job.job_id)
         if self.output_dir is not None:
             for post in posts:
