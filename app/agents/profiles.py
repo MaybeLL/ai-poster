@@ -87,10 +87,20 @@ class ClaudePrintProfile:
                 snippet = "<empty stdout>"
             raise ValueError(f"claude output was not valid JSON: {snippet}") from exc
 
+        # When --json-schema is used, structured output may be in 'structured_output' key
         if isinstance(parsed, dict) and "structured_output" in parsed:
             return json.dumps(parsed["structured_output"], ensure_ascii=True)
 
+        # Legacy format: 'result' field contains a JSON string
         if isinstance(parsed, dict) and "result" in parsed and isinstance(parsed["result"], str):
-            inner = json.loads(parsed["result"])
-            return json.dumps(inner, ensure_ascii=True)
+            try:
+                inner = json.loads(parsed["result"])
+                return json.dumps(inner, ensure_ascii=True)
+            except JSONDecodeError:
+                # 'result' is a descriptive text, not JSON.
+                # Return the entire top-level dict and let the caller parse it.
+                pass
+
+        # Fallback: return the entire parsed output as JSON
+        # (caller may need to extract the relevant field)
         return json.dumps(parsed, ensure_ascii=True)

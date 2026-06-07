@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from uuid import uuid4
 
 from pathlib import Path
@@ -24,6 +25,9 @@ from app.services.events.engine import EventCluster
 from app.services.factory import ContentServices
 from app.services.ingestion.service import IngestionResult
 from app.workflows.mvp_workflow import WorkflowRunResult
+
+
+logger = logging.getLogger(__name__)
 
 
 class PersistentWorkflowRunner:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -15,16 +17,20 @@ logger = logging.getLogger(__name__)
 
 
 TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]{4,}")
+CHINESE_TOKEN_PATTERN = re.compile(r"[\u4e00-\u9fff]{2,}")
 STOP_WORDS = {
-    "launches",
-    "launch",
-    "developers",
-    "official",
-    "cloud",
-    "with",
-    "this",
-    "that",
-    "from",
+    "launches", "launch", "developers", "official", "cloud",
+    "with", "this", "that", "from", "been", "have", "were",
+    "more", "some", "into", "over", "also", "just", "what",
+    "they", "will", "your", "about", "their", "which",
+}
+AI_DOMAIN_KEYWORDS = {
+    "ai", "llm", "gpt", "openai", "google", "model", "models",
+    "agent", "agents", "data", "training", "inference", "safety",
+    "alignment", "benchmark", "api", "chatbot", "chatbots",
+    "generative", "transformer", "reasoning", "coding",
+    "multimodal", "vision", "language", "deepmind", "anthropic",
+    "claude", "gemini", "image", "video", "search",
 }
 
 
@@ -125,9 +131,9 @@ class ResearchService:
         source_briefs = [
             SourceBrief(
                 source_id=document.source_id,
-                title=document.title,
+                title=html.unescape(document.title).strip(),
                 url=document.url,
-                summary=document.summary,
+                summary=html.unescape(document.summary or "").strip(),
                 published_at=document.published_at,
                 authority_weight=document.authority_weight,
             )
@@ -164,26 +170,71 @@ class ResearchService:
     def _collect_open_questions(self, source_briefs: List[SourceBrief]) -> List[str]:
         questions: List[str] = []
         if len(source_briefs) == 1:
-            questions.append("single_source_only")
+            questions.append("该事件目前仅有单一信源报道，建议关注更多独立媒体的跟进")
         if any(brief.published_at is None for brief in source_briefs):
-            questions.append("missing_publication_time")
+            questions.append("部分消息源发布时间未知，难以判断时效性")
+        if len(source_briefs) <= 2:
+            questions.append("该事件覆盖度偏低，可能尚未引起广泛关注")
+        # Check for competing claims
+        titles = [b.title.lower() for b in source_briefs]
+        if len(titles) >= 2 and len(set(titles)) < len(titles):
+            questions.append("标题存在高度重复，需核实是否为同一新闻的不同转载")
         return questions
 
     def _extract_keywords(self, headline: str, source_briefs: List[SourceBrief]) -> List[str]:
-        tokens = TOKEN_PATTERN.findall(" ".join([headline] + [brief.title for brief in source_briefs]))
-        normalized = []
-        seen = set()
-        for token in tokens:
-            lowered = token.lower()
-            if lowered in STOP_WORDS or lowered in seen:
+        """Extract domain-relevant keywords from titles and headline."""
+        all_text = " ".join([headline] + [brief.title for brief in source_briefs])
+
+        # Chinese tokens first (more relevant for target audience)
+        chinese_tokens = CHINESE_TOKEN_PATTERN.findall(all_text)
+        # English tokens filtered by AI domain relevance
+        english_tokens = TOKEN_PATTERN.findall(all_text)
+        ai_tokens = [t for t in english_tokens if t.lower() in AI_DOMAIN_KEYWORDS]
+        other_tokens = [
+            t for t in english_tokens
+            if t.lower() not in AI_DOMAIN_KEYWORDS and t.lower() not in STOP_WORDS
+        ]
+
+        result: List[str] = []
+        seen: set = set()
+        for token in chinese_tokens:
+            if token.lower() in seen:
                 continue
-            seen.add(lowered)
-            normalized.append(token)
-        return normalized[:6]
+            seen.add(token.lower())
+            result.append(token)
+        for token in ai_tokens:
+            if token.lower() in seen:
+                continue
+            seen.add(token.lower())
+            result.append(token)
+        for token in other_tokens:
+            if len(result) >= 6:
+                break
+            if token.lower() in seen:
+                continue
+            seen.add(token.lower())
+            result.append(token)
+        return result[:6]
 
     def _build_event_summary(self, headline: str, source_briefs: List[SourceBrief]) -> str:
+        """Build a meaningful event summary by combining source summaries."""
         source_count = len(source_briefs)
-        return f"{headline}. Covered by {source_count} source{'s' if source_count != 1 else ''} in the current event cluster."
+        summaries: List[str] = []
+        for brief in source_briefs[:3]:
+            clean = html.unescape(brief.summary or "").strip()
+            if clean:
+                # Take first 2 sentences max from each source
+                sentences = re.split(r"(?<=[.!?。！？])\s+", clean)
+                snippet = " ".join(sentences[:2]).strip()
+                if len(snippet) > 200:
+                    snippet = snippet[:200].rsplit(" ", 1)[0] + "..."
+                summaries.append(snippet)
+
+        if not summaries:
+            return f"{headline}。目前共有 {source_count} 个相关报道来源。"
+
+        combined = " ".join(summaries)
+        return f"{headline}。该事件共有 {source_count} 个信源报道：{combined}"
 
 
 class AgentResearchService:

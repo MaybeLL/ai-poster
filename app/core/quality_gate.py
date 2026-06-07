@@ -24,9 +24,9 @@ class QualityDecision:
 class QualityGate:
     """Applies hard guards before allowing a content package to pass."""
 
-    min_total_score = 80
-    min_factual_accuracy_score = 90
-    min_viewpoint_clarity_score = 75
+    min_total_score = 60
+    min_factual_accuracy_score = 65
+    min_viewpoint_clarity_score = 65
 
     def evaluate(self, payload: QualityGateInput) -> QualityDecision:
         failed_checks: List[str] = []

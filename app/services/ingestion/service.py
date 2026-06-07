@@ -88,6 +88,11 @@ class IngestionService:
 
     @staticmethod
     def _default_fetcher(url: str) -> str:
-        response = httpx.get(url, headers={"User-Agent": "ai-poster/0.1"}, timeout=20.0)
+        response = httpx.get(
+            url,
+            headers={"User-Agent": "ai-poster/0.1"},
+            timeout=20.0,
+            follow_redirects=True,
+        )
         response.raise_for_status()
         return response.text
